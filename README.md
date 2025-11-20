@@ -1,487 +1,304 @@
+# 🤖 Multi-modal RAG System
 
-# Multi-modal RAG System
+A production-ready FastAPI-based Retrieval-Augmented Generation (RAG) system that supports **text, tables, and images**.
 
-A production-ready Multi-modal Retrieval-Augmented Generation (RAG) system that supports text, tables, and images with semantic summarization and flexible LLM/MLLM backends.
+## ✨ Features
 
-## Features
+- 📄 **Multi-format support**: PDF, DOCX, HTML, TXT, Markdown, Images
+- 🔍 **Semantic search**: Vector-based similarity search with ChromaDB
+- 🧠 **LLM backends**: Supports both Ollama (local) and OpenAI (cloud)
+- 🖼️ **Multimodal**: Process and query images alongside text
+- 📊 **Table extraction**: Parse and understand tabular data
+- ⚡ **Fast & efficient**: Async processing, batch operations
+- 🔐 **Secure**: API key authentication
+- 📱 **Modern UI**: Responsive web interface with admin panel
 
-- 📄 **Multi-format Support**: PDF, DOCX, HTML, and images
-- 🔍 **Semantic Search**: Uses embeddings for accurate retrieval
-- 🧠 **Dual Model Support**: 
-  - LLM for text-only queries (GPT-4, Vicuna, Mistral)
-  - MLLM for multimodal queries (GPT-4o, MiniGPT-4, LLaVA)
-- 📊 **Table Processing**: Extracts and converts tables to Markdown
-- 🖼️ **Image Understanding**: Processes and analyzes images
-- 🔐 **Authentication**: API key and JWT token support
-- ⚡ **Async API**: FastAPI with high performance
-- 📦 **Vector Storage**: ChromaDB for embeddings
-- 💾 **Document Store**: Redis for raw content
-
-## Architecture
-
+## 🏗️ Architecture
 ```
-┌─────────────┐
-│   Client    │
-└──────┬──────┘
-       │
-       ▼
-┌─────────────────────────────────────┐
-│         FastAPI Server              │
-├─────────────────────────────────────┤
-│  /upload  │  /query  │  /delete    │
-└──────┬──────────┬──────────┬────────┘
-       │          │          │
-       ▼          ▼          ▼
-┌──────────┐ ┌─────────┐ ┌──────────┐
-│  Parser  │ │ Embedder│ │Retriever │
-└────┬─────┘ └────┬────┘ └────┬─────┘
-     │            │            │
-     ▼            ▼            ▼
-┌─────────────────────────────────────┐
-│  Summarizer (MLLM/LLM)              │
-└─────────────────────────────────────┘
-     │            │            │
-     ▼            ▼            ▼
-┌──────────┐ ┌─────────┐ ┌──────────┐
-│ChromaDB  │ │ Redis   │ │  Files   │
-│(Vectors) │ │(Docstore│ │(./figures)│
-└──────────┘ └─────────┘ └──────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    User Interface                        │
+│              (Chat + Admin Panel)                        │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│                  FastAPI Server                          │
+│  /upload  │  /query  │  /documents  │  /health          │
+└─────┬───────┬────────┬─────────┬─────────────────────────┘
+      │       │        │         │
+      ▼       ▼        ▼         ▼
+┌─────────┐ ┌──────┐ ┌────────┐ ┌─────────┐
+│ Parser  │ │Embed │ │Retrieve│ │   LLM   │
+└─────────┘ └──────┘ └────────┘ └─────────┘
+      │         │         │          │
+      ▼         ▼         ▼          ▼
+┌─────────┐ ┌──────┐ ┌────────┐ ┌─────────┐
+│ Files   │ │Chrome│ │ Redis  │ │ Ollama  │
+└─────────┘ └──────┘ └────────┘ └─────────┘
 ```
 
-## Installation
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - Python 3.9+
-- Redis server
-- OpenAI API key (or local LLM setup)
-- Tesseract OCR (optional, for OCR)
+- Redis
+- Ollama (for local LLM) or OpenAI API key
 
-### Step 1: Clone and Setup
+### Installation
 
+1. **Clone the repository**
 ```bash
-# Create project directory
-mkdir multimodal_rag
+git clone <your-repo-url>
 cd multimodal_rag
+```
 
-# Create virtual environment
+2. **Create virtual environment**
+```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\\Scripts\\activate
 
-# Install dependencies
+# Linux/Mac
+source venv/bin/activate
+
+# Windows
+venv\Scripts\activate
+```
+
+3. **Install dependencies**
+```bash
 pip install -r requirements.txt
 ```
 
-### Step 2: Install System Dependencies
-
+4. **Setup Redis**
 ```bash
 # Ubuntu/Debian
-sudo apt-get install tesseract-ocr poppler-utils redis-server
+sudo apt-get install redis-server
+sudo systemctl start redis
 
 # macOS
-brew install tesseract poppler redis
+brew install redis
+brew services start redis
 
-# Start Redis
-redis-server
+# Or use Docker
+docker run -d -p 6379:6379 redis:alpine
 ```
 
-### Step 3: Configuration
+5. **Setup Ollama (for local LLM)**
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
 
-Create a `.env` file:
-
-```env
-OPENAI_API_KEY=your-openai-api-key-here
-API_KEY=your-secure-api-key
-SECRET_KEY=your-secret-key-for-jwt
+# Pull a model
+ollama pull gemma2:4b
 ```
 
-### Step 4: Run the Server
+6. **Configure environment**
+```bash
+cp .env.example .env
+nano .env  # Edit with your settings
+```
 
+**Important settings:**
+- `API_KEY`: Your API key for authentication
+- `SECRET_KEY`: Random 32+ character string
+- `OLLAMA_MODEL`: Model you pulled (e.g., `gemma2:4b`)
+- `USE_LOCAL_LLM`: `true` for Ollama, `false` for OpenAI
+
+7. **Run the server**
 ```bash
 python run_server.py
 ```
 
-The server will start on `http://localhost:8000`
+8. **Access the application**
 
-API Documentation: `http://localhost:8000/docs`
+- **Chat Interface**: http://localhost:8000
+- **Admin Panel**: http://localhost:8000/admin
+- **API Docs**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/health
 
-## Usage
+## 📖 Usage
 
-### 1. Upload Documents
+### Upload Documents
 
-```python
-import requests
+1. Go to the **Admin Panel** (http://localhost:8000/admin)
+2. Click "Upload Documents"
+3. Select files (PDF, DOCX, TXT, Images, etc.)
+4. Wait for processing
 
-url = "http://localhost:8000/upload"
-headers = {"Authorization": "Bearer your-api-key"}
+### Ask Questions
 
-with open("document.pdf", "rb") as f:
-    files = {"file": f}
-    response = requests.post(url, files=files, headers=headers)
+1. Go to the **Chat Interface** (http://localhost:8000)
+2. Type your question
+3. Get AI-powered answers based on your documents
 
-print(response.json())
-# {
-#   "doc_id": "doc_abc123",
-#   "filename": "document.pdf",
-#   "chunks_processed": {"text": 10, "table": 2, "image": 3},
-#   "message": "Document processed successfully"
-# }
-```
+### API Usage
 
-### 2. Query System
-
-```python
-import requests
-
-url = "http://localhost:8000/query"
-headers = {"Authorization": "Bearer your-api-key"}
-
-payload = {
-    "query": "What are the key findings?",
-    "top_k": 5,
-    "use_multimodal": True
-}
-
-response = requests.post(url, json=payload, headers=headers)
-result = response.json()
-
-print(result["answer"])
-print(f"Sources: {result['sources']}")
-```
-
-### 3. Run Example Script
-
+**Upload Document:**
 ```bash
-python example_query.py
+curl -X POST "http://localhost:8000/upload" \
+  -H "Authorization: Bearer test-api-key" \
+  -F "file=@document.pdf"
 ```
 
-## API Endpoints
-
-### POST /upload
-Upload and process documents.
-
-**Request:**
-- `file`: multipart/form-data
-
-**Response:**
-```json
-{
-  "doc_id": "doc_abc123",
-  "filename": "document.pdf",
-  "chunks_processed": {
-    "text": 10,
-    "table": 2,
-    "image": 3
-  },
-  "message": "Document processed successfully in 5.23s"
-}
+**Query Documents:**
+```bash
+curl -X POST "http://localhost:8000/query" \
+  -H "Authorization: Bearer test-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What are the sales figures?",
+    "top_k": 5,
+    "use_multimodal": true
+  }'
 ```
 
-### POST /query
-Query the RAG system.
+## 🔧 Configuration
 
-**Request:**
-```json
-{
-  "query": "Your question here",
-  "top_k": 5,
-  "use_multimodal": true
-}
+### Environment Variables
+
+Key configurations in `.env`:
+```bash
+# LLM Backend
+USE_LOCAL_LLM=true              # true for Ollama, false for OpenAI
+OLLAMA_MODEL=gemma2:4b          # Ollama model
+OPENAI_API_KEY=sk-...           # OpenAI API key
+
+# Security
+API_KEY=your-api-key            # API authentication
+SECRET_KEY=your-secret-key      # JWT secret (32+ chars)
+
+# Database
+REDIS_HOST=localhost
+REDIS_PORT=6379
+CHROMA_PERSIST_DIR=./chroma_db
+
+# Processing
+CHUNK_SIZE=1000                 # Text chunk size
+CHUNK_OVERLAP=200               # Chunk overlap
+TOP_K_RESULTS=5                 # Number of results
 ```
 
-**Response:**
-```json
-{
-  "answer": "Markdown formatted answer...",
-  "sources": [
-    {
-      "rank": 1,
-      "doc_id": "doc_abc123_text_0",
-      "relevance_score": 0.95,
-      "type": "text"
-    }
-  ],
-  "processing_time": 2.34
-}
+### Supported Models
+
+**Ollama (Local):**
+- gemma2:4b (recommended)
+- mistral
+- llama3
+- phi3
+- qwen
+
+**OpenAI (Cloud):**
+- gpt-4o (multimodal)
+- gpt-4-turbo
+- gpt-3.5-turbo
+
+## 🧪 Testing
+```bash
+# Install test dependencies
+pip install pytest pytest-asyncio
+
+# Run tests
+pytest tests/
+
+# With coverage
+pytest --cov=app tests/
 ```
 
-### DELETE /document/{doc_id}
-Delete a document and all associated data.
-
-## Switching LLM/MLLM Backends
-
-The system uses an adapter pattern for easy backend switching.
-
-### Option 1: Use Different OpenAI Models
-
-In `config.py`:
-```python
-OPENAI_MODEL = "gpt-4-turbo"  # or "gpt-3.5-turbo"
-```
-
-### Option 2: Add Local LLM Support
-
-Create a new adapter in `app/models/local_llm_adapter.py`:
-
-```python
-from .base_adapter import BaseLLMAdapter
-from transformers import AutoTokenizer, AutoModelForCausalLM
-
-class LocalLLMAdapter(BaseLLMAdapter):
-    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.1"):
-        super().__init__(model_name)
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForCausalLM.from_pretrained(model_name)
-    
-    async def generate_text(self, prompt, **kwargs):
-        inputs = self.tokenizer(prompt, return_tensors="pt")
-        outputs = self.model.generate(**inputs, **kwargs)
-        return self.tokenizer.decode(outputs[0])
-    
-    # Implement other methods...
-```
-
-Update `app/server/api.py`:
-```python
-from app.models.local_llm_adapter import LocalLLMAdapter
-
-llm_adapter = LocalLLMAdapter("mistralai/Mistral-7B-Instruct-v0.1")
-```
-
-### Option 3: Add LLaVA for Multimodal
-
-```python
-from .base_adapter import BaseLLMAdapter
-from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration
-
-class LLaVAAdapter(BaseLLMAdapter):
-    def __init__(self):
-        self.processor = LlavaNextProcessor.from_pretrained("llava-hf/llava-v1.6-mistral-7b-hf")
-        self.model = LlavaNextForConditionalGeneration.from_pretrained("llava-hf/llava-v1.6-mistral-7b-hf")
-    
-    # Implement methods...
-```
-
-## Project Structure
-
+## 📚 Project Structure
 ```
 multimodal_rag/
 ├── app/
-│   ├── __init__.py
-│   ├── models/              # LLM/MLLM adapters
-│   │   ├── __init__.py
-│   │   ├── base_adapter.py  # Base interface
-│   │   ├── llm_adapter.py   # Text-only LLM
-│   │   └── mllm_adapter.py  # Multimodal LLM
-│   ├── utils/               # Core utilities
-│   │   ├── __init__.py
-│   │   ├── parser.py        # Document parsing
-│   │   ├── summarizer.py    # Semantic summarization
-│   │   ├── embedder.py      # Embedding & vector store
-│   │   └── retriever.py     # Multi-vector retrieval
-│   └── server/              # API server
-│       ├── __init__.py
-│       ├── api.py           # FastAPI endpoints
-│       └── auth.py          # Authentication
-├── data/                    # Uploaded documents
-├── figures/                 # Extracted images
-├── chroma_db/              # ChromaDB storage
-├── config.py               # Configuration
-├── requirements.txt        # Dependencies
-├── run_server.py          # Server launcher
-├── example_query.py       # Example usage
-└── README.md              # This file
+│   ├── models/          # LLM adapters
+│   ├── server/          # FastAPI routes & auth
+│   └── utils/           # Document processing, embedding, retrieval
+├── static/              # Frontend assets (CSS, JS)
+├── templates/           # HTML templates
+├── config.py            # Configuration
+├── requirements.txt     # Dependencies
+├── run_server.py       # Server launcher
+└── .env                # Environment variables
 ```
 
-## How It Works
-
-### 1. Document Upload & Processing
-
-```
-PDF/DOCX/HTML → Parser → Text Chunks + Tables + Images
-                           ↓
-                    Summarizer (MLLM)
-                           ↓
-                Semantic Summaries (for embedding)
-                           ↓
-              ┌─────────────┴─────────────┐
-              ↓                           ↓
-         Embeddings                  Raw Content
-              ↓                           ↓
-         ChromaDB                      Redis
-     (Summary vectors)           (Original content)
-```
-
-### 2. Query & Retrieval
-
-```
-User Query → Embedding → ChromaDB Search
-                              ↓
-                      Top-K IDs Retrieved
-                              ↓
-                     Redis Lookup (by ID)
-                              ↓
-              Raw Content: Text + Tables + Images
-                              ↓
-                     LLM/MLLM Generation
-                              ↓
-                      Markdown Answer
-```
-
-### 3. Multi-Vector Retrieval
-
-- **Embeddings**: Created from semantic summaries (concise, searchable)
-- **Storage**: Raw documents preserved separately (accurate, complete)
-- **Retrieval**: Search summaries → return original docs → accurate generation
-
-## Advanced Configuration
-
-### Chunking Strategy
-
-In `config.py`:
-```python
-CHUNK_SIZE = 1000      # Characters per chunk
-CHUNK_OVERLAP = 200    # Overlap between chunks
-```
-
-### Embedding Models
-
-In `config.py`:
-```python
-SENTENCE_TRANSFORMER_MODEL = "all-MiniLM-L6-v2"  # Fast
-# Or use: "all-mpnet-base-v2"  # More accurate
-# Or use: "BAAI/bge-large-en-v1.5"  # State-of-the-art
-```
-
-### Top-K Results
-
-In `config.py`:
-```python
-TOP_K_RESULTS = 5  # Number of results to retrieve
-```
-
-## Testing
-
-### Unit Tests
-
-```bash
-pytest tests/
-```
-
-### Load Testing
-
-```bash
-locust -f tests/load_test.py
-```
-
-## Monitoring
-
-The system includes Prometheus metrics at `/metrics`:
-
-- Request count
-- Response time
-- Error rate
-- Document processing time
-
-## Troubleshooting
+## 🐛 Troubleshooting
 
 ### Redis Connection Error
-
 ```bash
-# Start Redis
-redis-server
+# Check if Redis is running
+redis-cli ping
+# Should return: PONG
 
-# Check Redis status
-redis-cli ping  # Should return PONG
+# Start Redis if not running
+sudo systemctl start redis
 ```
 
-### CUDA Out of Memory
-
-For local models, reduce batch size or use CPU:
-
-```python
-device = "cpu"  # Instead of "cuda"
-```
-
-### Tesseract Not Found
-
+### Ollama Connection Error
 ```bash
-# Install Tesseract
-sudo apt-get install tesseract-ocr
+# Check if Ollama is running
+curl http://localhost:11434/api/tags
 
-# Set path in config if needed
-pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+# Start Ollama
+ollama serve
 ```
 
-## Performance Optimization
+### Model Not Found
+```bash
+# List installed models
+ollama list
 
-1. **Use GPU**: For local models, enable CUDA
-2. **Batch Processing**: Process multiple chunks together
-3. **Caching**: Enable Redis caching for embeddings
-4. **Async Operations**: All I/O is async for better performance
+# Pull missing model
+ollama pull gemma2:4b
+```
 
-## Security
+### Port Already in Use
+```bash
+# Change port in .env
+API_PORT=8001
 
-- API key authentication
-- JWT token support
-- Rate limiting (configure in production)
-- Input validation
-- Secure file handling
+# Or kill process using port 8000
+lsof -ti:8000 | xargs kill -9
+```
 
-## License
+## 🚀 Production Deployment
 
-MIT License - see LICENSE file
+See [DEPLOYMENT.md](DEPLOYMENT.md) for production setup guide.
 
-## Contributing
+Key considerations:
+- Use strong `SECRET_KEY` and `API_KEY`
+- Set `USE_LOCAL_LLM=false` if using OpenAI
+- Configure CORS properly
+- Use environment-specific `.env` files
+- Set up SSL/TLS
+- Use process manager (systemd, supervisor)
+- Configure monitoring
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
 
 1. Fork the repository
-2. Create feature branch
-3. Make changes with tests
-4. Submit pull request
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
 
-## Support
+## 📧 Support
 
-For issues and questions:
-- GitHub Issues
-- Documentation: `http://localhost:8000/docs`
+- **Issues**: GitHub Issues
+- **Discussions**: GitHub Discussions
+- **Email**: your-email@example.com
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
-- FastAPI for the web framework
-- ChromaDB for vector storage
-- OpenAI for LLM/MLLM capabilities
-- Sentence Transformers for embeddings
-"""
+- [FastAPI](https://fastapi.tiangolo.com/)
+- [ChromaDB](https://www.trychroma.com/)
+- [Sentence Transformers](https://www.sbert.net/)
+- [Ollama](https://ollama.ai/)
+- [OpenAI](https://openai.com/)
 
-print("=" * 80)
-print("MULTI-MODAL RAG SYSTEM - COMPLETE CODEBASE GENERATED")
-print("=" * 80)
-print("\\nAll files have been generated. To use this system:\\n")
-print("1. Create project directory: mkdir multimodal_rag && cd multimodal_rag")
-print("2. Save all files in their respective locations")
-print("3. Create virtual environment: python -m venv venv")
-print("4. Activate: source venv/bin/activate")
-print("5. Install: pip install -r requirements.txt")
-print("6. Configure .env file with your API keys")
-print("7. Start Redis: redis-server")
-print("8. Run server: python run_server.py")
-print("9. Test: python example_query.py\\n")
-print("=" * 80)
-        
-        prompt = prompts.get(content_type, prompts["text"])
-        
-        try:
-            response = await self.client.chat.completions.create(
-                model=self.model_name,
-                messages=[
-                    {"role": "system", "content": "You are an expert at creating concise, semantic summaries."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=300,
-                temperature=0.3
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            logger.error(f"Error summarizing content: {str(e)}")
-            return content[:500]  # Fallback to truncation
+---
 
+Made with ❤️ by Multi-modal RAG Team
