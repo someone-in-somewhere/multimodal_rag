@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 from pydantic_settings import BaseSettings
+from typing import Optional
+
 
 class Settings(BaseSettings):
     # API Configuration
@@ -14,26 +16,24 @@ class Settings(BaseSettings):
     API_KEY: str = "test-api-key"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-
+    
+    # OpenAI Configuration
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o"
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
+    
     # Local LLM Configuration
     USE_LOCAL_LLM: bool = True
-    OLLAMA_MODEL: str = "mistral"
+    OLLAMA_MODEL: str = "mistral"  # Changed from gemma3 to mistral for consistency
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     
     # Paths
-    BASE_DIR: Path = Path(__file__).parent
-    DATA_DIR: Path = BASE_DIR / "data"
-    FIGURES_DIR: Path = BASE_DIR / "figures"
-    
-    # OpenAI Configuration
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_MODEL: str = "gpt-4o"
-    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
-    USE_LOCAL_LLM: bool = True
-    OLLAMA_MODEL: str = "gemma3"
+    BASE_DIR: Path = Path(__file__).parent.resolve()
+    DATA_DIR: Optional[Path] = None
+    FIGURES_DIR: Optional[Path] = None
+    CHROMA_PERSIST_DIR: Optional[Path] = None
     
     # Chroma Configuration
-    CHROMA_PERSIST_DIR: str = "./chroma_db"
     CHROMA_COLLECTION_NAME: str = "multimodal_rag"
     
     # Redis Configuration
@@ -54,9 +54,23 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "allow"
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Initialize paths after BASE_DIR is set
+        if self.DATA_DIR is None:
+            self.DATA_DIR = self.BASE_DIR / "data"
+        if self.FIGURES_DIR is None:
+            self.FIGURES_DIR = self.BASE_DIR / "figures"
+        if self.CHROMA_PERSIST_DIR is None:
+            self.CHROMA_PERSIST_DIR = self.BASE_DIR / "chroma_db"
+        
+        # Create directories
+        self.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        self.FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+        self.CHROMA_PERSIST_DIR.mkdir(parents=True, exist_ok=True)
 
+
+# Initialize settings
 settings = Settings()
-
-# Create directories
-settings.DATA_DIR.mkdir(exist_ok=True)
-settings.FIGURES_DIR.mkdir(exist_ok=True)
