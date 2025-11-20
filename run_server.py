@@ -1,163 +1,171 @@
-#!/usr/bin/env python3
 """
-Script to run the Multi-modal RAG server.
+Server runner for Multi-modal RAG System
+Handles startup checks and runs the FastAPI application
 """
+
 import sys
-import uvicorn
+import asyncio
+import logging
 from pathlib import Path
 
-# Add parent directory to path for imports
+# Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
+import uvicorn
+import redis
+import httpx
 from config import settings
 
+# Configure logging
+logging.basicConfig(
+    level=getattr(logging, settings.LOG_LEVEL),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-def check_dependencies():
-    """Check if required services are available."""
-    import redis
-    import httpx
-    
-    warnings = []
-    
-    # Check Redis
+
+def check_redis():
+    """Check if Redis is accessible"""
     try:
         r = redis.Redis(
             host=settings.REDIS_HOST,
             port=settings.REDIS_PORT,
-            password=settings.REDIS_PASSWORD if settings.REDIS_PASSWORD else None,
             db=settings.REDIS_DB,
-            socket_connect_timeout=2
+            password=settings.REDIS_PASSWORD,
+            socket_timeout=5,
+            socket_connect_timeout=5
         )
         r.ping()
-        print("✓ Redis connection successful")
+        logger.info("✅ Redis connection: OK")
+        return True
+    except redis.ConnectionError as e:
+        logger.error(f"❌ Redis connection failed: {e}")
+        logger.error("💡 Make sure Redis is running: redis-server")
+        return False
     except Exception as e:
-        warnings.append(f"⚠ Redis not available: {e}")
-    
-    # Check Ollama if using local LLM
-    if settings.USE_LOCAL_LLM:
-        try:
-            response = httpx.get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=2.0)
-            if response.status_code == 200:
-                print(f"✓ Ollama available at {settings.OLLAMA_BASE_URL}")
-            else:
-                warnings.append(f"⚠ Ollama responded with status {response.status_code}")
-        except Exception as e:
-            warnings.append(f"⚠ Ollama not available: {e}")
-    
-    # Check OpenAI API key
+        logger.error(f"❌ Redis check error: {e}")
+        return False
+
+
+async def check_ollama():
+    """Check if Ollama is accessible (if using local LLM)"""
     if not settings.USE_LOCAL_LLM:
-        if not settings.OPENAI_API_KEY:
-            warnings.append("⚠ OPENAI_API_KEY not set in environment")
-        else:
-            print("✓ OpenAI API key configured")
+        logger.info("ℹ️  Using OpenAI API (Ollama check skipped)")
+        return True
     
-    return warnings
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{settings.OLLAMA_BASE_URL}/api/tags")
+            
+            if response.status_code == 200:
+                models = response.json().get("models", [])
+                model_names = [m.get("name") for m in models]
+                
+                logger.info("✅ Ollama connection: OK")
+                logger.info(f"📦 Available models: {', '.join(model_names)}")
+                
+                # Check if configured model exists
+                if settings.OLLAMA_MODEL in model_names:
+                    logger.info(f"✅ Model '{settings.OLLAMA_MODEL}' is available")
+                else:
+                    logger.warning(f"⚠️  Model '{settings.OLLAMA_MODEL}' not found")
+                    logger.warning(f"💡 Pull it with: ollama pull {settings.OLLAMA_MODEL}")
+                    return False
+                
+                return True
+            else:
+                logger.error(f"❌ Ollama returned status {response.status_code}")
+                return False
+                
+    except httpx.ConnectError:
+        logger.error("❌ Cannot connect to Ollama")
+        logger.error("💡 Make sure Ollama is running: ollama serve")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Ollama check error: {e}")
+        return False
 
 
-def get_server_url():
-    """Get the actual server URL for display."""
-    host = settings.API_HOST
-    port = settings.API_PORT
+def print_startup_info():
+    """Print startup information"""
+    print("\n" + "="*70)
+    print("🚀 Multi-modal RAG System Starting")
+    print("="*70)
+    print(f"📍 Host: {settings.API_HOST}:{settings.API_PORT}")
+    print(f"🔑 API Key: {settings.API_KEY[:10]}...")
+    print(f"🤖 LLM Backend: {'Ollama (Local)' if settings.USE_LOCAL_LLM else 'OpenAI (Cloud)'}")
     
-    # If listening on 0.0.0.0, show localhost for convenience
-    if host == "0.0.0.0":
-        display_host = "localhost"
+    if settings.USE_LOCAL_LLM:
+        print(f"   └─ Model: {settings.OLLAMA_MODEL}")
+        print(f"   └─ URL: {settings.OLLAMA_BASE_URL}")
     else:
-        display_host = host
+        print(f"   └─ Model: {settings.OPENAI_MODEL}")
     
-    return f"http://{display_host}:{port}"
+    print(f"💾 Redis: {settings.REDIS_HOST}:{settings.REDIS_PORT}")
+    print(f"📊 ChromaDB: {settings.CHROMA_COLLECTION_NAME}")
+    print(f"📁 Data Directory: {settings.DATA_DIR}")
+    print(f"🖼️  Figures Directory: {settings.FIGURES_DIR}")
+    print("="*70)
+    print()
+
+
+async def run_startup_checks():
+    """Run all startup checks"""
+    logger.info("🔍 Running startup checks...")
+    
+    checks = [
+        ("Redis", check_redis()),
+        ("Ollama", check_ollama())
+    ]
+    
+    results = []
+    for name, check in checks:
+        if asyncio.iscoroutine(check):
+            result = await check
+        else:
+            result = check
+        results.append((name, result))
+    
+    # Check results
+    failed = [name for name, result in results if not result]
+    
+    if failed:
+        logger.error(f"\n❌ Startup checks failed: {', '.join(failed)}")
+        logger.error("Cannot start server. Please fix the issues above.\n")
+        return False
+    
+    logger.info("✅ All startup checks passed!\n")
+    return True
 
 
 def main():
-    """Main entry point."""
-    print("=" * 60)
-    print(f"🚀 Starting {settings.API_TITLE} v{settings.API_VERSION}")
-    print("=" * 60)
+    """Main entry point"""
+    print_startup_info()
     
-    # Check dependencies
-    print("\n📋 Checking dependencies...")
-    warnings = check_dependencies()
+    # Run startup checks
+    checks_passed = asyncio.run(run_startup_checks())
     
-    if warnings:
-        print("\n⚠️  Warnings:")
-        for warning in warnings:
-            print(f"  {warning}")
-        print("\nServer will start, but some features may not work.\n")
-    else:
-        print("\n✅ All dependencies available\n")
+    if not checks_passed:
+        sys.exit(1)
     
-    # Display server info
-    server_url = get_server_url()
-    print("=" * 60)
-    print(f"🌐 Server URL: {server_url}")
-    print(f"📚 API Docs:   {server_url}/docs")
-    print(f"🔄 ReDoc:      {server_url}/redoc")
-    print("=" * 60)
-    print(f"\n🔧 Configuration:")
-    print(f"  - LLM Mode: {'Local (Ollama)' if settings.USE_LOCAL_LLM else 'OpenAI'}")
-    if settings.USE_LOCAL_LLM:
-        print(f"  - Model: {settings.OLLAMA_MODEL}")
-    print(f"  - Embedding: {settings.SENTENCE_TRANSFORMER_MODEL}")
-    print(f"  - Vector DB: ChromaDB at {settings.CHROMA_PERSIST_DIR}")
-    print(f"  - Document Store: Redis at {settings.REDIS_HOST}:{settings.REDIS_PORT}")
-    print("=" * 60)
-    print("\n💡 Press CTRL+C to stop the server\n")
+    # Start server
+    logger.info("🎉 Starting FastAPI server...\n")
     
     try:
         uvicorn.run(
             "app.server.api:app",
             host=settings.API_HOST,
             port=settings.API_PORT,
-            reload=True,
-            log_level="info"
+            reload=True,  # Auto-reload on code changes (development)
+            log_level=settings.LOG_LEVEL.lower(),
+            access_log=True
         )
     except KeyboardInterrupt:
-        print("\n\n👋 Server stopped by user")
-        sys.exit(0)
+        logger.info("\n👋 Server stopped by user")
     except Exception as e:
-        print(f"\n\n❌ Error starting server: {e}")
+        logger.error(f"\n💥 Server error: {e}")
         sys.exit(1)
 
 
 if __name__ == "__main__":
     main()
-```
-
-## 📝 Các cải tiến:
-
-1. ✅ **Thêm `check_dependencies()`** - kiểm tra Redis, Ollama, OpenAI key
-2. ✅ **Better error handling** - try/except cho server startup
-3. ✅ **Improved display** - show URL dễ nhìn hơn (localhost thay vì 0.0.0.0)
-4. ✅ **Configuration summary** - hiển thị config đang dùng
-5. ✅ **Graceful shutdown** - handle Ctrl+C đúng cách
-6. ✅ **Better formatting** - dùng emoji và separators cho dễ đọc
-7. ✅ **Path handling** - thêm parent dir vào sys.path để import đúng
-8. ✅ **Documentation links** - thêm ReDoc link
-
-## 🎯 Output mẫu khi chạy:
-```
-============================================================
-🚀 Starting Multi-modal RAG System v1.0.0
-============================================================
-
-📋 Checking dependencies...
-✓ Redis connection successful
-✓ Ollama available at http://localhost:11434
-
-✅ All dependencies available
-
-============================================================
-🌐 Server URL: http://localhost:8000
-📚 API Docs:   http://localhost:8000/docs
-🔄 ReDoc:      http://localhost:8000/redoc
-============================================================
-
-🔧 Configuration:
-  - LLM Mode: Local (Ollama)
-  - Model: mistral
-  - Embedding: all-MiniLM-L6-v2
-  - Vector DB: ChromaDB at /path/to/chroma_db
-  - Document Store: Redis at localhost:6379
-============================================================
-
-💡 Press CTRL+C to stop the server
