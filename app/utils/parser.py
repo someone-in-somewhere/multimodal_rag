@@ -1,247 +1,375 @@
-import os
+"""
+Document Parser
+Parses various document formats (PDF, DOCX, HTML, Images, Text)
+"""
+
+import io
 import base64
-import uuid
+import logging
 from pathlib import Path
-from typing import List, Dict, Any
-from io import BytesIO
+from typing import Dict, List, Any, Optional
+import mimetypes
 
 import pypdf
 from docx import Document as DocxDocument
 from bs4 import BeautifulSoup
 from PIL import Image
-import pytesseract
 from pdf2image import convert_from_bytes
 from tabulate import tabulate
-import structlog
 
 from config import settings
 
-logger = structlog.get_logger()
+logger = logging.getLogger(__name__)
+
+# Try to import pytesseract (OCR)
+try:
+    import pytesseract
+    TESSERACT_AVAILABLE = True
+    logger.info("✅ Tesseract OCR available")
+except ImportError:
+    TESSERACT_AVAILABLE = False
+    logger.warning("⚠️  Tesseract OCR not available (pip install pytesseract)")
+
 
 class DocumentParser:
     """
-    Parses various document formats (PDF, DOCX, HTML, TXT) and extracts:
-    - Text chunks
-    - Tables (as Markdown)
-    - Images (saved to figures/ directory)
+    Parse various document formats and extract structured content
+    
+    Supported formats:
+    - PDF (.pdf)
+    - Word Documents (.docx, .doc)
+    - HTML (.html, .htm)
+    - Plain Text (.txt, .md)
+    - Images (.png, .jpg, .jpeg, .gif, .webp)
     """
     
     def __init__(self):
-        self.figures_dir = settings.FIGURES_DIR
+        """Initialize the parser"""
         self.chunk_size = settings.CHUNK_SIZE
         self.chunk_overlap = settings.CHUNK_OVERLAP
+        self.figures_dir = settings.FIGURES_DIR
+        
+        # Create figures directory
+        self.figures_dir.mkdir(parents=True, exist_ok=True)
+        
+        logger.info(
+            f"DocumentParser initialized "
+            f"(chunk_size={self.chunk_size}, overlap={self.chunk_overlap})"
+        )
     
     async def parse_document(
         self,
-        file_content: bytes,
+        content: bytes,
         filename: str,
-        file_type: str
+        content_type: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Main parsing method that routes to appropriate parser.
-        """
-        logger.info(f"Parsing document: {filename} (type: {file_type})")
+        Parse a document and extract structured content
         
-        if file_type == "application/pdf":
-            return await self._parse_pdf(file_content, filename)
-        elif file_type in ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"]:
-            return await self._parse_docx(file_content, filename)
-        elif file_type == "text/html":
-            return await self._parse_html(file_content, filename)
-        elif file_type.startswith("image/"):
-            return await self._parse_image(file_content, filename)
-        elif file_type in ["text/plain", "text/markdown", "application/octet-stream"]:
-            return await self._parse_text(file_content, filename)
+        Args:
+            content: File content as bytes
+            filename: Original filename
+            content_type: MIME type (optional)
+        
+        Returns:
+            Dictionary with:
+            - text_chunks: List of text chunks
+            - tables: List of table dictionaries
+            - images: List of image dictionaries
+        """
+        # Determine content type
+        if not content_type:
+            content_type, _ = mimetypes.guess_type(filename)
+        
+        logger.info(f"Parsing {filename} (type: {content_type})")
+        
+        # Route to appropriate parser
+        if content_type == "application/pdf" or filename.endswith('.pdf'):
+            return await self._parse_pdf(content, filename)
+        
+        elif content_type in [
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/msword"
+        ] or filename.endswith(('.docx', '.doc')):
+            return await self._parse_docx(content, filename)
+        
+        elif content_type == "text/html" or filename.endswith(('.html', '.htm')):
+            return await self._parse_html(content, filename)
+        
+        elif content_type and content_type.startswith('image/'):
+            return await self._parse_image(content, filename)
+        
+        elif content_type and content_type.startswith('text/'):
+            return await self._parse_text(content, filename)
+        
         else:
-            raise ValueError(f"Unsupported file type: {file_type}")
+            # Try to parse as text
+            logger.warning(f"Unknown content type: {content_type}, trying as text")
+            return await self._parse_text(content, filename)
     
     async def _parse_pdf(self, content: bytes, filename: str) -> Dict[str, Any]:
-        text_chunks = []
-        tables = []
-        images = []
+        """Parse PDF file"""
+        logger.info(f"📄 Parsing PDF: {filename}")
         
         try:
-            pdf_reader = pypdf.PdfReader(BytesIO(content))
-            full_text = ""
+            # Extract text using pypdf
+            pdf_reader = pypdf.PdfReader(io.BytesIO(content))
             
+            full_text = ""
             for page_num, page in enumerate(pdf_reader.pages):
                 page_text = page.extract_text()
-                full_text += page_text + "\n\n"
+                if page_text:
+                    full_text += page_text + "\n\n"
             
-            text_chunks = self._chunk_text(full_text)
-            
-            pdf_images = convert_from_bytes(content)
-            for idx, img in enumerate(pdf_images):
-                img_id = f"{Path(filename).stem}_page_{idx}_{uuid.uuid4().hex[:8]}"
-                img_path = self.figures_dir / f"{img_id}.png"
-                img.save(img_path)
+            # Convert PDF pages to images
+            images = []
+            try:
+                pdf_images = convert_from_bytes(content, dpi=200)
                 
-                buffered = BytesIO()
-                img.save(buffered, format="PNG")
-                img_base64 = base64.b64encode(buffered.getvalue()).decode()
-                
-                images.append({
-                    'id': img_id,
-                    'path': str(img_path),
-                    'base64': img_base64
-                })
-            
-            logger.info(f"Parsed PDF: {len(text_chunks)} chunks, {len(images)} images")
-            
-        except Exception as e:
-            logger.error(f"Error parsing PDF: {str(e)}")
-            raise
-        
-        return {
-            'text_chunks': text_chunks,
-            'tables': tables,
-            'images': images,
-            'metadata': {'filename': filename, 'type': 'pdf'}
-        }
-    
-    async def _parse_docx(self, content: bytes, filename: str) -> Dict[str, Any]:
-        text_chunks = []
-        tables = []
-        images = []
-        
-        try:
-            doc = DocxDocument(BytesIO(content))
-            
-            full_text = "\n".join([para.text for para in doc.paragraphs])
-            text_chunks = self._chunk_text(full_text)
-            
-            for table_idx, table in enumerate(doc.tables):
-                table_data = []
-                for row in table.rows:
-                    table_data.append([cell.text for cell in row.cells])
-                
-                if table_data:
-                    markdown_table = tabulate(table_data[1:], headers=table_data[0], tablefmt="github")
-                    tables.append({
-                        'content': markdown_table,
-                        'raw': str(table_data),
-                        'id': f"table_{table_idx}"
-                    })
-            
-            for rel in doc.part.rels.values():
-                if "image" in rel.target_ref:
-                    img_id = f"{Path(filename).stem}_{uuid.uuid4().hex[:8]}"
-                    img_path = self.figures_dir / f"{img_id}.png"
+                for idx, img in enumerate(pdf_images):
+                    img_filename = f"{Path(filename).stem}_page_{idx}.png"
+                    img_path = self.figures_dir / img_filename
                     
-                    img_data = rel.target_part.blob
-                    with open(img_path, 'wb') as f:
-                        f.write(img_data)
+                    # Save image
+                    img.save(img_path, "PNG")
                     
-                    img_base64 = base64.b64encode(img_data).decode()
+                    # Convert to base64
+                    buffered = io.BytesIO()
+                    img.save(buffered, format="PNG")
+                    img_base64 = base64.b64encode(buffered.getvalue()).decode()
                     
                     images.append({
-                        'id': img_id,
+                        'id': f"page_{idx}",
                         'path': str(img_path),
                         'base64': img_base64
                     })
-            
-            logger.info(f"Parsed DOCX: {len(text_chunks)} chunks, {len(tables)} tables, {len(images)} images")
-            
-        except Exception as e:
-            logger.error(f"Error parsing DOCX: {str(e)}")
-            raise
-        
-        return {
-            'text_chunks': text_chunks,
-            'tables': tables,
-            'images': images,
-            'metadata': {'filename': filename, 'type': 'docx'}
-        }
-    
-    async def _parse_html(self, content: bytes, filename: str) -> Dict[str, Any]:
-        text_chunks = []
-        tables = []
-        
-        try:
-            soup = BeautifulSoup(content, 'lxml')
-            text = soup.get_text(separator='\n')
-            text_chunks = self._chunk_text(text)
-            
-            for table_idx, table in enumerate(soup.find_all('table')):
-                table_data = []
-                for row in table.find_all('tr'):
-                    cells = row.find_all(['td', 'th'])
-                    table_data.append([cell.get_text(strip=True) for cell in cells])
                 
-                if table_data:
-                    markdown_table = tabulate(table_data[1:], headers=table_data[0], tablefmt="github") if len(table_data) > 1 else str(table_data)
-                    tables.append({
-                        'content': markdown_table,
-                        'raw': str(table_data),
-                        'id': f"table_{table_idx}"
-                    })
+                logger.info(f"✅ Extracted {len(images)} pages as images")
             
-            logger.info(f"Parsed HTML: {len(text_chunks)} chunks, {len(tables)} tables")
+            except Exception as e:
+                logger.warning(f"Failed to convert PDF to images: {e}")
             
-        except Exception as e:
-            logger.error(f"Error parsing HTML: {str(e)}")
-            raise
-        
-        return {
-            'text_chunks': text_chunks,
-            'tables': tables,
-            'images': [],
-            'metadata': {'filename': filename, 'type': 'html'}
-        }
-    
-    async def _parse_image(self, content: bytes, filename: str) -> Dict[str, Any]:
-        try:
-            img = Image.open(BytesIO(content))
-            img_id = f"{Path(filename).stem}_{uuid.uuid4().hex[:8]}"
-            img_path = self.figures_dir / f"{img_id}.png"
-            img.save(img_path)
+            # Chunk text
+            text_chunks = self._chunk_text(full_text) if full_text else []
             
-            img_base64 = base64.b64encode(content).decode()
-            ocr_text = pytesseract.image_to_string(img)
-            text_chunks = self._chunk_text(ocr_text) if ocr_text.strip() else []
-            
-            logger.info(f"Parsed image: {filename}")
+            logger.info(
+                f"✅ PDF parsed: {len(text_chunks)} text chunks, {len(images)} images"
+            )
             
             return {
                 'text_chunks': text_chunks,
-                'tables': [],
-                'images': [{
-                    'id': img_id,
-                    'path': str(img_path),
-                    'base64': img_base64
-                }],
-                'metadata': {'filename': filename, 'type': 'image'}
+                'tables': [],  # Table extraction from PDF is complex, skipping for now
+                'images': images
             }
+        
         except Exception as e:
-            logger.error(f"Error parsing image: {str(e)}")
+            logger.error(f"❌ PDF parsing failed: {e}")
             raise
     
-    async def _parse_text(self, content: bytes, filename: str) -> Dict[str, Any]:
-        """Parse plain text or markdown file."""
+    async def _parse_docx(self, content: bytes, filename: str) -> Dict[str, Any]:
+        """Parse DOCX file"""
+        logger.info(f"📝 Parsing DOCX: {filename}")
+        
         try:
-            # Try UTF-8 first, fallback to latin-1
+            doc = DocxDocument(io.BytesIO(content))
+            
+            # Extract text from paragraphs
+            paragraphs = [para.text for para in doc.paragraphs if para.text.strip()]
+            full_text = "\n\n".join(paragraphs)
+            
+            # Extract tables
+            tables = []
+            for idx, table in enumerate(doc.tables):
+                table_data = []
+                
+                for row in table.rows:
+                    row_data = [cell.text.strip() for cell in row.cells]
+                    table_data.append(row_data)
+                
+                if table_data:
+                    # Convert to markdown format using tabulate
+                    try:
+                        if len(table_data) > 1:
+                            markdown_table = tabulate(
+                                table_data[1:],  # Data rows
+                                headers=table_data[0],  # Header row
+                                tablefmt="github"
+                            )
+                        else:
+                            markdown_table = tabulate(table_data, tablefmt="github")
+                        
+                        tables.append({
+                            'id': f"table_{idx}",
+                            'content': markdown_table
+                        })
+                    except Exception as e:
+                        logger.warning(f"Failed to format table {idx}: {e}")
+            
+            # Extract images (more complex, skipping for now)
+            images = []
+            
+            # Chunk text
+            text_chunks = self._chunk_text(full_text) if full_text else []
+            
+            logger.info(
+                f"✅ DOCX parsed: {len(text_chunks)} text chunks, {len(tables)} tables"
+            )
+            
+            return {
+                'text_chunks': text_chunks,
+                'tables': tables,
+                'images': images
+            }
+        
+        except Exception as e:
+            logger.error(f"❌ DOCX parsing failed: {e}")
+            raise
+    
+    async def _parse_html(self, content: bytes, filename: str) -> Dict[str, Any]:
+        """Parse HTML file"""
+        logger.info(f"🌐 Parsing HTML: {filename}")
+        
+        try:
+            # Decode content
             try:
                 text = content.decode('utf-8')
             except UnicodeDecodeError:
                 text = content.decode('latin-1')
             
-            # Chunk text
-            text_chunks = self._chunk_text(text)
+            # Parse with BeautifulSoup
+            soup = BeautifulSoup(text, 'html.parser')
             
-            logger.info(f"Parsed text file: {len(text_chunks)} chunks")
+            # Remove script and style elements
+            for script in soup(["script", "style"]):
+                script.decompose()
+            
+            # Extract text
+            full_text = soup.get_text(separator='\n\n')
+            
+            # Extract tables
+            tables = []
+            for idx, table in enumerate(soup.find_all('table')):
+                table_data = []
+                
+                for row in table.find_all('tr'):
+                    cells = row.find_all(['td', 'th'])
+                    row_data = [cell.get_text(strip=True) for cell in cells]
+                    if row_data:
+                        table_data.append(row_data)
+                
+                if table_data:
+                    try:
+                        markdown_table = tabulate(
+                            table_data[1:] if len(table_data) > 1 else table_data,
+                            headers=table_data[0] if len(table_data) > 1 else [],
+                            tablefmt="github"
+                        )
+                        tables.append({
+                            'id': f"table_{idx}",
+                            'content': markdown_table
+                        })
+                    except Exception as e:
+                        logger.warning(f"Failed to format HTML table {idx}: {e}")
+            
+            # Chunk text
+            text_chunks = self._chunk_text(full_text) if full_text else []
+            
+            logger.info(
+                f"✅ HTML parsed: {len(text_chunks)} text chunks, {len(tables)} tables"
+            )
+            
+            return {
+                'text_chunks': text_chunks,
+                'tables': tables,
+                'images': []
+            }
+        
+        except Exception as e:
+            logger.error(f"❌ HTML parsing failed: {e}")
+            raise
+    
+    async def _parse_text(self, content: bytes, filename: str) -> Dict[str, Any]:
+        """Parse plain text file"""
+        logger.info(f"📃 Parsing text: {filename}")
+        
+        try:
+            # Try UTF-8 first, fallback to latin-1
+            try:
+                text = content.decode('utf-8')
+            except UnicodeDecodeError:
+                text = content.decode('latin-1', errors='ignore')
+            
+            # Chunk text
+            text_chunks = self._chunk_text(text) if text else []
+            
+            logger.info(f"✅ Text parsed: {len(text_chunks)} chunks")
             
             return {
                 'text_chunks': text_chunks,
                 'tables': [],
-                'images': [],
-                'metadata': {'filename': filename, 'type': 'text'}
+                'images': []
             }
+        
         except Exception as e:
-            logger.error(f"Error parsing text: {str(e)}")
+            logger.error(f"❌ Text parsing failed: {e}")
+            raise
+    
+    async def _parse_image(self, content: bytes, filename: str) -> Dict[str, Any]:
+        """Parse image file"""
+        logger.info(f"🖼️  Parsing image: {filename}")
+        
+        try:
+            # Open image
+            img = Image.open(io.BytesIO(content))
+            
+            # Save to figures directory
+            img_filename = Path(filename).name
+            img_path = self.figures_dir / img_filename
+            img.save(img_path)
+            
+            # Convert to base64
+            buffered = io.BytesIO()
+            img.save(buffered, format=img.format or "PNG")
+            img_base64 = base64.b64encode(buffered.getvalue()).decode()
+            
+            # Try OCR if available
+            text_chunks = []
+            if TESSERACT_AVAILABLE:
+                try:
+                    ocr_text = pytesseract.image_to_string(img)
+                    if ocr_text.strip():
+                        text_chunks = self._chunk_text(ocr_text)
+                        logger.info(f"✅ OCR extracted {len(text_chunks)} text chunks")
+                except Exception as e:
+                    logger.warning(f"OCR failed: {e}")
+            
+            logger.info(f"✅ Image parsed: {img_path}")
+            
+            return {
+                'text_chunks': text_chunks,
+                'tables': [],
+                'images': [{
+                    'id': 'image_0',
+                    'path': str(img_path),
+                    'base64': img_base64
+                }]
+            }
+        
+        except Exception as e:
+            logger.error(f"❌ Image parsing failed: {e}")
             raise
     
     def _chunk_text(self, text: str) -> List[str]:
-        if not text.strip():
+        """
+        Chunk text into smaller pieces with overlap
+        
+        Args:
+            text: Text to chunk
+        
+        Returns:
+            List of text chunks
+        """
+        if not text or not text.strip():
             return []
         
         chunks = []
@@ -250,17 +378,59 @@ class DocumentParser:
         
         while start < text_length:
             end = start + self.chunk_size
+            
+            # Get chunk
             chunk = text[start:end]
             
+            # If not at the end, try to find a good breaking point
             if end < text_length:
-                last_period = chunk.rfind('.')
+                # Look for sentence boundaries
+                last_period = chunk.rfind('. ')
                 last_newline = chunk.rfind('\n')
-                boundary = max(last_period, last_newline)
+                last_question = chunk.rfind('? ')
+                last_exclamation = chunk.rfind('! ')
+                
+                # Find the best boundary
+                boundary = max(last_period, last_newline, last_question, last_exclamation)
+                
+                # Only break at boundary if it's in the second half of the chunk
                 if boundary > self.chunk_size // 2:
                     chunk = chunk[:boundary + 1]
                     end = start + boundary + 1
             
-            chunks.append(chunk.strip())
+            chunk = chunk.strip()
+            
+            if chunk:
+                chunks.append(chunk)
+            
+            # Move start position with overlap
             start = end - self.chunk_overlap
         
-        return [c for c in chunks if c]
+        logger.debug(f"Chunked text into {len(chunks)} chunks")
+        
+        return chunks
+    
+    def cleanup_old_figures(self, days: int = 7):
+        """
+        Clean up old figure files
+        
+        Args:
+            days: Delete files older than this many days
+        """
+        import time
+        from datetime import datetime, timedelta
+        
+        cutoff = time.time() - (days * 86400)
+        deleted = 0
+        
+        for file_path in self.figures_dir.iterdir():
+            if file_path.is_file():
+                if file_path.stat().st_mtime < cutoff:
+                    try:
+                        file_path.unlink()
+                        deleted += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to delete {file_path}: {e}")
+        
+        if deleted > 0:
+            logger.info(f"🧹 Cleaned up {deleted} old figure files")
