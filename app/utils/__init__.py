@@ -1,7 +1,11 @@
-from .parser import DocumentParser
-from .summarizer import ContentSummarizer
-from .embedder import EmbeddingManager
-from .retriever import MultiVectorRetriever
+"""
+Utility modules for document processing, embedding, and retrieval
+"""
+
+from app.utils.parser import DocumentParser
+from app.utils.summarizer import ContentSummarizer
+from app.utils.embedder import EmbeddingManager
+from app.utils.retriever import MultiVectorRetriever
 
 __all__ = [
     "DocumentParser",
