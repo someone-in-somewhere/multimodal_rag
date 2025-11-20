@@ -1,0 +1,32 @@
+multimodal_rag/
+├── app/
+│   ├── __init__.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── base_adapter.py
+│   │   ├── llm_adapter.py
+│   │   └── mllm_adapter.py
+│   ├── server/
+│   │   ├── __init__.py
+│   │   ├── api.py
+│   │   └── auth.py
+│   └── utils/
+│       ├── __init__.py
+│       ├── embedder.py
+│       ├── parser.py
+│       ├── retriever.py
+│       └── summarizer.py
+├── static/
+│   ├── admin.css
+│   ├── admin.js
+│   ├── app.js
+│   └── style.css
+├── templates/
+│   ├── admin.html
+│   └── index.html
+├── config.py
+├── requirements.txt
+├── run_server.py
+├── .env
+├── .env.example
+└── .gitignore
