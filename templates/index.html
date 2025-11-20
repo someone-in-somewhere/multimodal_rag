@@ -3,41 +3,265 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-modal RAG - Chat</title>
+    <meta name="description" content="Hệ thống Multi-modal RAG - Trò chuyện thông minh với AI, hỗ trợ tài liệu và hình ảnh">
+    <meta name="author" content="Multi-modal RAG System">
+    <meta name="theme-color" content="#667eea">
+    
+    <title>Multi-modal RAG - Trợ lý AI thông minh</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+    
+    <!-- Stylesheets -->
     <link rel="stylesheet" href="/static/style.css">
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="/">
+    
+    <!-- Open Graph / Social Media Meta Tags -->
+    <meta property="og:title" content="Multi-modal RAG - Trợ lý AI">
+    <meta property="og:description" content="Hệ thống hỏi đáp thông minh với AI">
+    <meta property="og:type" content="website">
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RAG Chat">
 </head>
 <body>
+    <!-- Skip to main content (Accessibility) -->
+    <a href="#chatMessages" class="skip-link" style="position: absolute; top: -40px; left: 0; background: #667eea; color: white; padding: 8px; text-decoration: none; z-index: 100;">
+        Skip to chat
+    </a>
+
     <div class="container">
         <!-- Header -->
-        <header>
+        <header role="banner">
             <div class="header-content">
-                <div>
+                <div class="header-title">
                     <h1>🤖 Multi-modal RAG System</h1>
                     <p>Hệ thống hỏi đáp thông minh với AI</p>
                 </div>
-                <a href="/admin" class="btn-admin">⚙️ Quản Lý Tài Liệu</a>
+                <a href="/admin" class="btn-admin" title="Quản lý tài liệu">
+                    ⚙️ Quản Lý
+                </a>
             </div>
         </header>
 
-        <!-- Chat Area (Full Width) -->
-        <main class="chat-container">
-            <div id="chatMessages" class="chat-messages"></div>
-            
-            <div class="input-area">
-                <div class="image-preview" id="imagePreview"></div>
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar" role="complementary" aria-label="Khu vực quản lý tài liệu">
+                <h2>📚 Tài Liệu</h2>
                 
-                <div class="input-wrapper">
-                    <input type="file" id="imageInput" accept="image/*" style="display:none" onchange="previewImage()">
-                    <button onclick="document.getElementById('imageInput').click()" class="btn-icon" title="Đính kèm ảnh">📎</button>
-                    
-                    <input type="text" id="messageInput" placeholder="Nhập câu hỏi của bạn..." onkeypress="handleKeyPress(event)">
-                    
-                    <button onclick="sendMessage()" class="btn-send">Gửi</button>
+                <!-- Upload Section -->
+                <div class="upload-section">
+                    <h3>📤 Upload Tài Liệu</h3>
+                    <input 
+                        type="file" 
+                        id="fileInput" 
+                        multiple 
+                        accept=".pdf,.docx,.doc,.txt,.md,.html"
+                        aria-label="Chọn file tài liệu để upload"
+                    >
+                    <button 
+                        onclick="uploadFiles()" 
+                        class="btn-primary"
+                        type="button"
+                        aria-label="Upload tài liệu đã chọn">
+                        📤 Upload
+                    </button>
+                    <div 
+                        id="uploadStatus" 
+                        class="status-message" 
+                        role="status" 
+                        aria-live="polite">
+                    </div>
                 </div>
-            </div>
-        </main>
+                
+                <!-- Documents List -->
+                <div class="documents-list">
+                    <h3>📋 Đã Upload</h3>
+                    <ul id="documentsList" role="list" aria-label="Danh sách tài liệu đã upload">
+                        <li style="color: #999; font-style: italic;">Chưa có tài liệu nào</li>
+                    </ul>
+                </div>
+            </aside>
+
+            <!-- Chat Container -->
+            <main class="chat-container" role="main" aria-label="Khu vực trò chuyện">
+                <!-- Chat Messages -->
+                <div 
+                    id="chatMessages" 
+                    class="chat-messages" 
+                    role="log" 
+                    aria-live="polite" 
+                    aria-atomic="false"
+                    aria-label="Tin nhắn trò chuyện">
+                    <!-- Messages will be added here dynamically -->
+                </div>
+                
+                <!-- Input Area -->
+                <div class="input-area" role="region" aria-label="Khu vực nhập tin nhắn">
+                    <!-- Image Preview -->
+                    <div 
+                        id="imagePreview" 
+                        class="image-preview" 
+                        role="region" 
+                        aria-label="Xem trước hình ảnh">
+                    </div>
+                    
+                    <!-- Input Wrapper -->
+                    <form onsubmit="event.preventDefault(); sendMessage();" class="input-wrapper">
+                        <!-- Image Upload Button -->
+                        <input 
+                            type="file" 
+                            id="imageInput" 
+                            accept="image/jpeg,image/png,image/gif,image/webp" 
+                            style="display:none"
+                            aria-label="Chọn hình ảnh để gửi"
+                        >
+                        <button 
+                            type="button"
+                            onclick="document.getElementById('imageInput').click()" 
+                            class="btn-icon" 
+                            title="Đính kèm ảnh"
+                            aria-label="Đính kèm hình ảnh">
+                            📎
+                        </button>
+                        
+                        <!-- Message Input -->
+                        <textarea 
+                            id="messageInput" 
+                            placeholder="Nhập câu hỏi của bạn... (Enter để gửi, Shift+Enter để xuống dòng)"
+                            rows="1"
+                            maxlength="2000"
+                            aria-label="Nhập tin nhắn"
+                            aria-describedby="inputHint">
+                        </textarea>
+                        
+                        <!-- Send Button -->
+                        <button 
+                            type="submit"
+                            onclick="sendMessage()" 
+                            class="btn-send"
+                            aria-label="Gửi tin nhắn">
+                            📨 Gửi
+                        </button>
+                    </form>
+                    
+                    <!-- Input Hint -->
+                    <div id="inputHint" style="display: none;">
+                        Nhập câu hỏi và nhấn Enter để gửi, hoặc Shift+Enter để xuống dòng mới
+                    </div>
+                </div>
+            </main>
+        </div>
     </div>
 
+    <!-- Footer -->
+    <footer style="text-align: center; padding: 20px; color: white; font-size: 0.9em;">
+        <p>
+            Multi-modal RAG System v1.0 | 
+            <a href="/docs" style="color: white; text-decoration: underline;" target="_blank" rel="noopener">API Docs</a> | 
+            <a href="/admin" style="color: white; text-decoration: underline;">Admin Panel</a> |
+            <a href="/health" style="color: white; text-decoration: underline;" target="_blank" rel="noopener">Health</a>
+        </p>
+    </footer>
+
+    <!-- Scripts -->
     <script src="/static/app.js"></script>
+    
+    <!-- Service Worker Registration (PWA) -->
+    <script>
+        // Register service worker for offline support
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Uncomment to enable PWA features
+                // navigator.serviceWorker.register('/sw.js')
+                //     .then(registration => {
+                //         console.log('✅ Service Worker registered:', registration.scope);
+                //     })
+                //     .catch(error => {
+                //         console.log('❌ Service Worker registration failed:', error);
+                //     });
+            });
+        }
+
+        // Prevent iOS Safari from bouncing
+        document.addEventListener('touchmove', function(e) {
+            if (e.target.closest('.chat-messages') || e.target.closest('.sidebar')) {
+                return;
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        // Focus on message input when page loads
+        window.addEventListener('load', () => {
+            const messageInput = document.getElementById('messageInput');
+            if (messageInput && window.innerWidth > 768) {
+                // Only auto-focus on desktop
+                setTimeout(() => messageInput.focus(), 500);
+            }
+        });
+    </script>
+
+    <!-- Keyboard Shortcuts Help -->
+    <div id="shortcutsHelp" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 15px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); z-index: 10000; max-width: 400px;">
+        <h3 style="margin-bottom: 20px; color: #667eea;">⌨️ Phím tắt</h3>
+        <div style="display: grid; gap: 10px;">
+            <div><kbd>Enter</kbd> Gửi tin nhắn</div>
+            <div><kbd>Shift + Enter</kbd> Xuống dòng</div>
+            <div><kbd>Ctrl/Cmd + /</kbd> Hiện/ẩn phím tắt</div>
+            <div><kbd>Esc</kbd> Đóng</div>
+        </div>
+        <button onclick="document.getElementById('shortcutsHelp').style.display='none'" style="margin-top: 20px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 25px; cursor: pointer;">
+            Đóng
+        </button>
+    </div>
+
+    <!-- Keyboard shortcut to show help -->
+    <script>
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + / to toggle shortcuts help
+            if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+                e.preventDefault();
+                const help = document.getElementById('shortcutsHelp');
+                help.style.display = help.style.display === 'none' ? 'block' : 'none';
+            }
+            // Esc to close shortcuts help
+            if (e.key === 'Escape') {
+                document.getElementById('shortcutsHelp').style.display = 'none';
+            }
+        });
+    </script>
+
+    <!-- Performance monitoring (optional) -->
+    <script>
+        // Log page load performance
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const perfData = performance.getEntriesByType('navigation')[0];
+                if (perfData) {
+                    console.log('⚡ Page Load Time:', Math.round(perfData.loadEventEnd - perfData.fetchStart), 'ms');
+                }
+            }, 0);
+        });
+    </script>
+
+    <!-- Notification Permission (optional) -->
+    <script>
+        // Request notification permission for important updates
+        if ('Notification' in window && Notification.permission === 'default') {
+            // Uncomment to enable notifications
+            // setTimeout(() => {
+            //     Notification.requestPermission().then(permission => {
+            //         console.log('Notification permission:', permission);
+            //     });
+            // }, 5000);
+        }
+    </script>
+
 </body>
 </html>
