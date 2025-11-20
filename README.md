@@ -1,4 +1,4 @@
-README_MD = """
+
 # Multi-modal RAG System
 
 A production-ready Multi-modal Retrieval-Augmented Generation (RAG) system that supports text, tables, and images with semantic summarization and flexible LLM/MLLM backends.
@@ -484,4 +484,4 @@ print("=" * 80)
         except Exception as e:
             logger.error(f"Error summarizing content: {str(e)}")
             return content[:500]  # Fallback to truncation
-"""
+
