@@ -1,0 +1,16 @@
+# Giới Thiệu về Machine Learning
+
+Machine Learning (Học máy) là một nhánh của trí tuệ nhân tạo cho phép máy tính học từ dữ liệu mà không cần lập trình cụ thể.
+
+## Các Loại Machine Learning
+
+1. **Supervised Learning** (Học có giám sát): Học từ dữ liệu có nhãn
+2. **Unsupervised Learning** (Học không giám sát): Tìm patterns trong dữ liệu không có nhãn
+3. **Reinforcement Learning** (Học tăng cường): Học thông qua thử và sai
+
+## Ứng Dụng
+
+- Y tế: Chẩn đoán bệnh, dự đoán
+- Tài chính: Phát hiện gian lận
+- Giao thông: Xe tự lái
+- Thương mại điện tử: Hệ thống gợi ý

@@ -1,0 +1,5 @@
+Artificial Intelligence (AI) là khả năng của máy tính thực hiện các nhiệm vụ đòi hỏi trí thông minh con người.
+
+Machine Learning là một nhánh của AI, cho phép máy học từ dữ liệu mà không cần lập trình cụ thể.
+
+Deep Learning sử dụng mạng neural nhân tạo nhiều lớp để học các biểu diễn phức tạp của dữ liệu.
