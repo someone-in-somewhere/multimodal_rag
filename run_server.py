@@ -1,5 +1,5 @@
 """
-Server runner for Multi-modal RAG System
+Server runner for Multi-modal RAG System V2 (No Auth)
 Handles startup checks and runs the FastAPI application
 """
 
@@ -89,10 +89,13 @@ async def check_ollama():
 def print_startup_info():
     """Print startup information"""
     print("\n" + "="*70)
-    print("🚀 Multi-modal RAG System Starting")
+    print("🚀 Multi-modal RAG System V2 Starting (NO AUTH)")
     print("="*70)
     print(f"📍 Host: {settings.API_HOST}:{settings.API_PORT}")
-    print(f"🔑 API Key: {settings.API_KEY[:10]}...")
+    
+    # ❌ REMOVED: API Key line (no auth)
+    print(f"🔓 Auth: DISABLED (localhost only!)")  # NEW!
+    
     print(f"🤖 LLM Backend: {'Ollama (Local)' if settings.USE_LOCAL_LLM else 'OpenAI (Cloud)'}")
     
     if settings.USE_LOCAL_LLM:
@@ -105,7 +108,25 @@ def print_startup_info():
     print(f"📊 ChromaDB: {settings.CHROMA_COLLECTION_NAME}")
     print(f"📁 Data Directory: {settings.DATA_DIR}")
     print(f"🖼️  Figures Directory: {settings.FIGURES_DIR}")
+    
+    # NEW: V2 Features section
+    print("\n" + "⚡ V2 FEATURES ENABLED:")
+    print(f"   • Parser v3:     PowerPoint, dual PDF images")
+    print(f"   • Embedder v2:   Batch processing, GPU support, cache")
+    print(f"   • Retriever v2:  Compression (70%), cache, async Redis")
+    print(f"   • Summarizer v2: Parallel processing (8x), cache")
+    
     print("="*70)
+    
+    # NEW: Security warning if not localhost
+    if settings.API_HOST not in ["127.0.0.1", "localhost"]:
+        print("\n" + "⚠️ " * 23)
+        print("⚠️  WARNING: NO AUTHENTICATION ENABLED!")
+        print(f"⚠️  API_HOST is set to {settings.API_HOST}")
+        print("⚠️  Anyone with network access can use the API!")
+        print("⚠️  This is ONLY safe for localhost use!")
+        print("⚠️ " * 23 + "\n")
+    
     print()
 
 
@@ -149,7 +170,7 @@ def main():
         sys.exit(1)
     
     # Start server
-    logger.info("🎉 Starting FastAPI server...\n")
+    logger.info("🎉 Starting FastAPI server (V2 - No Auth)...\n")  # Updated message
     
     try:
         uvicorn.run(
@@ -168,4 +189,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()s
