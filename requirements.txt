@@ -20,6 +20,10 @@ aiofiles==23.2.1
 redis==5.0.1
 chromadb==0.4.22
 
+# ⭐ V2 NEW: Async Redis support (REQUIRED for V2!)
+redis[asyncio]>=5.0.1
+# Alternative: aioredis==2.0.1
+
 # ============================================================================
 # Document Processing
 # ============================================================================
@@ -30,6 +34,9 @@ lxml==4.9.3
 pdf2image==1.16.3
 Pillow==10.1.0
 pytesseract==0.3.10
+
+# ⭐ V2 NEW: PowerPoint support
+python-pptx==0.6.23
 
 # ============================================================================
 # AI/ML Libraries
@@ -48,6 +55,7 @@ tabulate==0.9.0
 # ============================================================================
 # Security
 # ============================================================================
+# ⚠️ NOTE: These are kept for compatibility but not used in no-auth version
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 
@@ -59,6 +67,12 @@ passlib[bcrypt]==1.7.4
 # git+https://github.com/openai/CLIP.git
 
 # ============================================================================
+# Optional: Better PDF/OCR (Recommended for V2)
+# ============================================================================
+# PyMuPDF==1.23.8  # Better PDF image extraction
+# langchain-text-splitters==0.0.1  # Better text chunking
+
+# ============================================================================
 # Development (Optional)
 # ============================================================================
 # pytest==7.4.3
@@ -66,3 +80,21 @@ passlib[bcrypt]==1.7.4
 # black==23.11.0
 # flake8==6.1.0
 # mypy==1.7.0
+
+# ============================================================================
+# V2 ADDITIONS SUMMARY
+# ============================================================================
+# New required dependencies for V2:
+# 1. redis[asyncio] - Async Redis support for Retriever v2
+# 2. python-pptx - PowerPoint support for Parser v3
+#
+# Optional but recommended:
+# 3. PyMuPDF - Better PDF image extraction
+# 4. langchain-text-splitters - Better text chunking
+#
+# To install V2 requirements:
+# pip install -r requirements.txt
+#
+# Or install manually:
+# pip install redis[asyncio] python-pptx
+# ============================================================================
