@@ -1,4 +1,5 @@
 """
+app/models/base_adapter.py
 Base adapter class for LLM interfaces
 Defines the common interface that all LLM adapters must implement
 """
@@ -188,3 +189,4 @@ class BaseLLMAdapter(ABC):
     
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(model={self.model_name})"
+
