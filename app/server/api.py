@@ -1,5 +1,5 @@
 """
-api_no_auth.py - API Without Authentication
+app/server/api.py
 ============================================
 For personal projects running locally only
 
@@ -521,3 +521,4 @@ async def startup_event():
     logger.info(f"📍 Server: http://{settings.API_HOST}:{settings.API_PORT}")
     logger.info(f"📖 Docs: http://{settings.API_HOST}:{settings.API_PORT}/docs")
     logger.info("="*70)
+
