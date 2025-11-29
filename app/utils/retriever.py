@@ -1,17 +1,6 @@
 """
-retriever_v2.py - Enhanced Multi-Vector Retriever
-==================================================
-NEW in v2:
-- ✅ Proper async with redis.asyncio (non-blocking)
-- ✅ Connection pooling (better concurrency)
-- ✅ Retry logic with exponential backoff
-- ✅ Data compression (save Redis memory - 50-70% reduction)
-- ✅ Transaction safety (atomic operations)
-- ✅ Batch optimization (chunked for large datasets)
-- ✅ LRU cache (hot documents in memory)
-- ✅ Health monitoring and metrics
-- ✅ Better error handling and recovery
-- ✅ Key parsing fix (correct doc_id extraction)
+multimodal_rag/app/utils/retriever.py
+
 
 Stores and retrieves raw documents from Redis
 
@@ -1023,3 +1012,4 @@ class MultiVectorRetriever:
     def _decompress(self, data: bytes) -> str:
         """Decompress gzip data to string"""
         return gzip.decompress(data).decode('utf-8')
+
