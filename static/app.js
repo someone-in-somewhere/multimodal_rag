@@ -1,6 +1,5 @@
 /**
- * Main Application JavaScript for Multi-modal RAG System
- * Handles chat interface, file uploads, and document management
+ * static/app.js
  */
 
 // ============================================================================
