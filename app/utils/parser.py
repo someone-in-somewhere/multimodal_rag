@@ -1,16 +1,5 @@
 """
-parser_v3.py - Enhanced Production-Ready RAG Document Parser
-============================================================
-NEW in v3:
-- ✅ PowerPoint (.pptx) support
-- ✅ PDF: Extract embedded images AND convert pages to images
-- ✅ Fixed async I/O blocking issues (proper thread execution)
-- ✅ Fixed memory leaks (BytesIO context managers)
-- ✅ Parallel table summarization (10x faster)
-- ✅ Improved chunking (cross-page context preservation)
-- ✅ HTML image fetching with rate limiting
-- ✅ Better error handling and logging
-
+app/utils/parser.py
 Supports: PDF, DOCX, PPTX, HTML, TXT/Markdown, Images (OCR)
 """
 
@@ -1901,3 +1890,4 @@ Summary:"""
     async def cleanup_async(self, days: int = 7) -> int:
         """Async cleanup"""
         return await asyncio.to_thread(self.cleanup_old_figures, days)
+
