@@ -1,6 +1,5 @@
 """
-Server runner for Multi-modal RAG System V2 (No Auth)
-Handles startup checks and runs the FastAPI application
+run_server.py
 """
 
 import sys
@@ -190,3 +189,4 @@ def main():
 
 if __name__ == "__main__":
     main()s
+
