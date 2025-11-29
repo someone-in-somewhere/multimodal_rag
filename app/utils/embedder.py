@@ -1,17 +1,5 @@
 """
-embedder_v2.py - Enhanced Embedding Manager
-============================================
-NEW in v2:
-- ✅ Batch processing (10x faster than sequential)
-- ✅ Embedding cache (avoid re-computation)
-- ✅ Proper async (non-blocking with thread pool)
-- ✅ Device management (CPU/GPU auto-detect + OOM handling)
-- ✅ Retry logic with exponential backoff
-- ✅ Memory-efficient streaming for large batches
-- ✅ Progress tracking for long operations
-- ✅ Hybrid search support (dense + sparse embeddings)
-- ✅ Better error handling and logging
-- ✅ Collection management improvements
+app/utils/embedder.py
 
 Handles text embeddings and vector storage in ChromaDB
 """
@@ -940,3 +928,4 @@ class EmbeddingManager:
         except Exception as e:
             logger.error(f"❌ Failed to find similar documents: {e}")
             raise
+
