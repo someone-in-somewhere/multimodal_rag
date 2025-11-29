@@ -1,4 +1,6 @@
 """
+app/server/auth.py
+
 auth_v2.py - Enhanced Authentication Module
 ============================================
 NEW in v2:
@@ -815,3 +817,4 @@ async def get_audit_events(limit: int = 100) -> List[Dict[str, Any]]:
 async def get_failed_attempts(minutes: int = 60) -> List[Dict[str, Any]]:
     """Get recent failed authentication attempts"""
     return audit_logger.get_failed_attempts(minutes)
+
