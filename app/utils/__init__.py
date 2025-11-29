@@ -1,5 +1,6 @@
 """
 Utility modules for document processing, embedding, and retrieval
+app/utils/__init__.py
 """
 
 from app.utils.parser import DocumentParser
@@ -13,3 +14,4 @@ __all__ = [
     "EmbeddingManager",
     "MultiVectorRetriever"
 ]
+
