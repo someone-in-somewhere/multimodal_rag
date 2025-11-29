@@ -1,4 +1,5 @@
 """
+app/models/llm_adapter.py
 LLM Adapter for text-only language models
 Supports: Ollama (local) and OpenAI (cloud)
 """
@@ -304,3 +305,4 @@ Summary:"""
             base_health["connection"] = f"error: {str(e)}"
         
         return base_health
+
