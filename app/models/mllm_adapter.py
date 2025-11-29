@@ -1,4 +1,5 @@
 """
+app/models/mllm_adapter.py
 Multimodal LLM Adapter for vision-language models
 Supports: Ollama (LLaVA) and OpenAI (GPT-4o)
 """
