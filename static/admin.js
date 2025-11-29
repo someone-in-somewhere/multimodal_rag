@@ -1,6 +1,5 @@
 /**
- * Admin Panel JavaScript for Multi-modal RAG System
- * Handles document upload, management, and UI interactions
+ * static/admin.js
  */
 
 // ============================================================================
