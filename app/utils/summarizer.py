@@ -1,17 +1,5 @@
 """
-summarizer_v2.py - Enhanced Content Summarizer
-===============================================
-NEW in v2:
-- ✅ Parallel processing for ALL content types (10x faster)
-- ✅ Rate limiting with semaphore (prevent API overwhelm)
-- ✅ Retry logic with exponential backoff (reliability)
-- ✅ Summary caching (avoid re-computation)
-- ✅ Progress tracking for long operations
-- ✅ Quality validation (empty, too short, gibberish detection)
-- ✅ Batch optimization for large datasets
-- ✅ Statistics tracking (monitor performance)
-- ✅ Intelligent fallback strategies
-- ✅ Support for parser v3 output format
+app/utils/summarizer.py
 
 Creates semantic summaries of text, tables, and images using LLMs
 """
@@ -835,3 +823,4 @@ class ContentSummarizer:
         await asyncio.gather(*tasks, return_exceptions=True)
         
         logger.info(f"✅ Cache warmed up")
+
