@@ -1,6 +1,5 @@
 """
-Configuration module for Multi-modal RAG System V2 (No Auth)
-Loads environment variables and provides application settings
+config.py
 """
 
 import os
@@ -172,3 +171,4 @@ def validate_settings():
 
 # Validate on import
 validate_settings()
+
